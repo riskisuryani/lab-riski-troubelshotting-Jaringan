@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab Riski TKJ - Modul Simulasi CLI Ping & Packet Traceroute</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        slate: {
+                            850: '#141c2b',
+                            925: '#0a0f1c',
+                            950: '#060911',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(71, 85, 105, 0.7);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(100, 116, 139, 0.9);
+        }
+
+        /* Animasi Komponen Perangkat Keras Masuk (Slide & Snap) */
+        .hw-part {
+            transition: opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+                        transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1),
+                        filter 0.4s ease;
+        }
+        .hw-uninstalled {
+            opacity: 0.16;
+            transform: translateY(-18px) scale(0.95);
+            filter: grayscale(100%);
+        }
+        .hw-installed {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            filter: grayscale(0%);
+        }
+
+        /* Animasi Pemasangan Kabel UTP */
+        .utp-cable {
+            stroke-dasharray: 450;
+            stroke-dashoffset: 450;
+            transition: stroke-dashoffset 0.85s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+            opacity: 0.18;
+        }
+        .utp-cable.connected {
+            stroke-dashoffset: 0;
+            opacity: 1;
+        }
+
+        /* Lampu Indikator LED Link / Activity */
+        @keyframes led-blink-green {
+            0%, 100% { fill: #10b981; filter: drop-shadow(0 0 4px #10b981); }
+            50% { fill: #6ee7b7; filter: drop-shadow(0 0 8px #34d399); }
+        }
+        @keyframes led-blink-amber {
+            0%, 45% { fill: #f59e0b; filter: drop-shadow(0 0 5px #f59e0b); }
+            50%, 95% { fill: #78350f; filter: none; }
+        }
+        .led-link-on {
+            animation: led-blink-green 1.8s infinite;
+        }
+        .led-act-on {
+            animation: led-blink-amber 0.45s infinite;
+        }
+
+        /* Aliran Arus Data saat Kabel Aktif */
+        @keyframes dash-flow {
+            to { stroke-dashoffset: -24; }
+        }
+        .cable-flow-overlay {
+            stroke-dasharray: 5 7;
+            animation: dash-flow 1s linear infinite;
+        }
+
+        /* Efek Glow Paket ICMP */
+        .packet-glow-cyan { filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.95)); }
+        .packet-glow-green { filter: drop-shadow(0 0 8px rgba(52, 211, 153, 0.95)); }
+        .packet-glow-amber { filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.95)); }
+        .packet-glow-red { filter: drop-shadow(0 0 10px rgba(248, 113, 113, 1)); }
+
+        /* Denyut Radar Node Aktif */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.9); opacity: 0.85; }
+            100% { transform: scale(1.35); opacity: 0; }
+        }
+        .node-pulse {
+            transform-box: fill-box;
+            transform-origin: center;
+            animation: pulse-ring 1.2s ease-out infinite;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-200 font-sans min-h-screen flex flex-col selection:bg-cyan-500/30 selection:text-cyan-200">
+
+    <!-- ======================================================================= -->
+    <!-- HEADER UTAMA: LAB RISKI TKJ                                             -->
+    <!-- ======================================================================= -->
+    <header class="bg-slate-900/95 border-b border-slate-800 backdrop-blur-md sticky top-0 z-30 px-4 py-3">
+        <div class="max-w-[1640px] mx-auto flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+            <!-- Identitas Lab -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 shrink-0 border border-cyan-400/30">
+                    <!-- Server & Terminal Icon -->
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <rect x="2" y="3" width="20" height="7" rx="2"></rect>
+                        <rect x="2" y="14" width="20" height="7" rx="2"></rect>
+                        <line x1="6" y1="6.5" x2="6.01" y2="6.5" stroke-width="3" stroke-linecap="round"></line>
+                        <line x1="6" y1="17.5" x2="6.01" y2="17.5" stroke-width="3" stroke-linecap="round"></line>
+                        <path d="M14 6.5h4M14 17.5h4"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h1 class="text-base sm:text-lg font-extrabold tracking-tight text-white">
+                            Lab Riski TKJ <span class="text-cyan-400 font-semibold">— Modul Simulasi CLI Ping &amp; Packet Traceroute</span>
+                        </h1>
+                        <span class="px-2 py-0.5 text-[10px] font-mono font-bold uppercase tracking-wider bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 rounded-full">
+                            Administrasi Infrastruktur Jaringan
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-400 hidden sm:block">
+                        Laboratorium Virtual Perakitan Hardware PC &amp; Rak Server Terintegrasi Pengujian Konektivitas ICMP
+                    </p>
+                </div>
+            </div>
+
+            <!-- Kontrol Cepat Header -->
+            <div class="flex items-center flex-wrap gap-2">
+                <button onclick="autoAssembleAll(true)"
+                    class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/35 transition flex items-center gap-1.5 cursor-pointer">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Rakit Instan (Siap Uji)
+                </button>
+
+                <button onclick="runScenario('ping 8.8.8.8')"
+                    class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 transition flex items-center gap-1.5 cursor-pointer">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    Uji Ping 8.8.8.8
+                </button>
+
+                <button onclick="runScenario('tracert 8.8.8.8')"
+                    class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition flex items-center gap-1.5 cursor-pointer">
+                    <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                    Uji Tracert 3-Hop
+                </button>
+
+                <button onclick="resetLaboratory()"
+                    class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5 cursor-pointer"
+                    title="Bongkar ulang rakitan dan reset terminal">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Reset Lab
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ======================================================================= -->
+    <!-- MAIN 3-COLUMN WORKSPACE                                                 -->
+    <!-- ======================================================================= -->
+    <main class="flex-1 max-w-[1640px] w-full mx-auto p-3 sm:p-4 grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+
+        <!-- =================================================================== -->
+        <!-- PANEL KIRI: TERMINAL CLI INTERAKTIF (4 Kolom)                       -->
+        <!-- =================================================================== -->
+        <section class="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col overflow-hidden shadow-2xl min-h-[480px] lg:h-[calc(100vh-96px)]">
+            <!-- Top Bar Terminal ala cmd.exe -->
+            <div class="px-4 py-2.5 bg-slate-850 border-b border-slate-800 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <div class="flex gap-1.5">
+                        <span class="w-3 h-3 rounded-full bg-rose-500/85"></span>
+                        <span class="w-3 h-3 rounded-full bg-amber-500/85"></span>
+                        <span class="w-3 h-3 rounded-full bg-emerald-500/85"></span>
+                    </div>
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300 ml-2 flex items-center gap-1.5">
+                        <span class="font-mono text-cyan-400">C:\&gt;</span> Command Prompt — Riski-TKJ
+                    </h2>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span id="cli-status-badge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                        READY
+                    </span>
+                    <button onclick="clearTerminal()" class="text-xs text-slate-400 hover:text-white px-2 py-0.5 rounded hover:bg-slate-800 transition cursor-pointer">
+                        Clear
+                    </button>
+                </div>
+            </div>
+
+            <!-- Area Output Teks Terminal -->
+            <div id="terminal-output" onclick="focusCliInput()"
+                class="flex-1 p-4 bg-[#05080f] font-mono text-xs sm:text-[13px] leading-relaxed overflow-y-auto space-y-1.5 cursor-text select-text">
+                <!-- Diisi otomatis via JS -->
+            </div>
+
+            <!-- Quick Command Chips -->
+            <div class="px-3 py-2 bg-slate-900/95 border-t border-slate-800/90">
+                <div class="flex items-center justify-between text-[10px] uppercase tracking-wider text-slate-400 font-semibold mb-1.5">
+                    <span>Perintah Cepat (Klik untuk Jalankan):</span>
+                    <span class="text-slate-500 font-mono">↑ / ↓ Riwayat</span>
+                </div>
+                <div class="flex flex-wrap gap-1.5">
+                    <button onclick="triggerQuickCmd('ping 8.8.8.8')" class="px-2 py-1 rounded-md bg-slate-800 hover:bg-cyan-950 hover:text-cyan-300 hover:border-cyan-700 text-slate-300 border border-slate-700 font-mono text-[11px] transition cursor-pointer">
+                        ping 8.8.8.8
+                    </button>
+                    <button onclick="triggerQuickCmd('tracert 8.8.8.8')" class="px-2 py-1 rounded-md bg-slate-800 hover:bg-cyan-950 hover:text-cyan-300 hover:border-cyan-700 text-slate-300 border border-slate-700 font-mono text-[11px] transition cursor-pointer">
+                        tracert 8.8.8.8
+                    </button>
+                    <button onclick="triggerQuickCmd('ping google.com')" class="px-2 py-1 rounded-md bg-slate-800 hover:bg-cyan-950 hover:text-cyan-300 hover:border-cyan-700 text-slate-300 border border-slate-700 font-mono text-[11px] transition cursor-pointer">
+                        ping google.com
+                    </button>
+                    <button onclick="triggerQuickCmd('ping 192.168.1.1')" class="px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-mono text-[11px] transition cursor-pointer">
+                        ping 192.168.1.1
+                    </button>
+                    <button onclick="triggerQuickCmd('ping 10.10.10.1')" class="px-2 py-1 rounded-md bg-slate-800 hover:bg-rose-950 hover:text-rose-300 hover:border-rose-700 text-slate-300 border border-slate-700 font-mono text-[11px] transition cursor-pointer">
+                        ping 10.10.10.1
+                    </button>
+                    <button onclick="triggerQuickCmd('ipconfig')" class="px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700 font-mono text-[11px] transition cursor-pointer">
+                        ipconfig
+                    </button>
+                    <button onclick="triggerQuickCmd('help')" class="px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 font-mono text-[11px] transition cursor-pointer">
+                        help
+                    </button>
+                </div>
+            </div>
+
+            <!-- Bar Input CLI -->
+            <form id="cli-form" class="p-3 bg-slate-950 border-t border-slate-800 flex items-center gap-2">
+                <span class="font-mono text-xs sm:text-[13px] text-emerald-400 font-semibold shrink-0 select-none">
+                    C:\Users\Riski-TKJ&gt;
+                </span>
+                <input id="cli-input" type="text" autocomplete="off" spellcheck="false"
+                    placeholder="Ketik ping 8.8.8.8 atau tracert 8.8.8.8..."
+                    class="flex-1 bg-transparent text-white font-mono text-xs sm:text-[13px] focus:outline-none placeholder:text-slate-600" />
+                <button type="submit" id="cli-submit-btn"
+                    class="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-xs transition shrink-0 cursor-pointer">
+                    Enter
+                </button>
+            </form>
+        </section>
+
+        <!-- =================================================================== -->
+        <!-- PANEL TENGAH: ANIMASI PEMASANGAN SERVER/PC & TOPOLOGI KONEKSI       -->
+        <!-- =================================================================== -->
+        <section class="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col overflow-hidden shadow-2xl min-h-[540px] lg:h-[calc(100vh-96px)]">
+            <!-- Header Panel Tengah -->
+            <div class="px-4 py-2.5 bg-slate-850 border-b border-slate-800 flex items-center justify-between">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <circle cx="12" cy="12" r="3" />
+                    </svg>
+                    Perakitan PC &amp; Rak Server
+                </h2>
+                <span id="assembly-progress-badge" class="text-[11px] font-mono font-semibold text-amber-300 bg-amber-500/15 px-2.5 py-0.5 rounded-full border border-amber-500/30">
+                    Rakitan: 1/5 Tahap
+                </span>
+            </div>
+
+            <!-- Bar Progress Perakitan -->
+            <div class="w-full bg-slate-950 h-1.5">
+                <div id="assembly-progress-bar" class="bg-gradient-to-r from-cyan-500 to-emerald-400 h-1.5 transition-all duration-500" style="width: 20%;"></div>
+            </div>
+
+            <!-- Kanvas SVG Interaktif Perakitan Hardware & Aliran Paket -->
+            <div class="flex-1 relative bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px] bg-slate-950/85 flex items-center justify-center p-2 overflow-hidden">
+                <svg id="hardware-assembly-svg" viewBox="0 0 460 510" class="w-full h-full max-h-[470px] select-none">
+                    <defs>
+                        <!-- Gradien Logam Casing & Rak -->
+                        <linearGradient id="rackMetal" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#0f172a" />
+                            <stop offset="50%" stop-color="#1e293b" />
+                            <stop offset="100%" stop-color="#0f172a" />
+                        </linearGradient>
+                        <linearGradient id="pcbGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#065f46" />
+                            <stop offset="100%" stop-color="#064e3b" />
+                        </linearGradient>
+                    </defs>
+
+                    <!-- Label Kolom Area Kerja -->
+                    <text x="108" y="22" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="700" font-family="Inter">WORKSTATION PC CLIENT</text>
+                    <text x="108" y="36" text-anchor="middle" fill="#38bdf8" font-size="10" font-family="JetBrains Mono">IP: 192.168.1.10</text>
+
+                    <text x="348" y="22" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="700" font-family="Inter">OPEN RACK SERVER 19"</text>
+                    <text x="348" y="36" text-anchor="middle" fill="#34d399" font-size="10" font-family="JetBrains Mono">3-Hop Network Infrastructure</text>
+
+                    <!-- ========================================================= -->
+                    <!-- BAGIAN KIRI SVG: CASING PC CLIENT & KOMPONEN INTERNAL     -->
+                    <!-- ========================================================= -->
+                    <g id="pc-chassis-group" transform="translate(18, 48)">
+                        <!-- Rangka Casing PC (Tahap 1 - Selalu Terpasang sebagai Base) -->
+                        <rect x="0" y="0" width="180" height="390" rx="14" fill="url(#rackMetal)" stroke="#334155" stroke-width="2.5" />
+                        <!-- Tempered Glass Side Window -->
+                        <rect x="10" y="12" width="160" height="336" rx="8" fill="#070d19" stroke="#1e293b" stroke-width="1.5" />
+                        <!-- Front Panel Tombol Power & USB -->
+                        <circle cx="26" cy="368" r="7" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5" />
+                        <circle id="pc-power-led" cx="26" cy="368" r="3" fill="#334155" />
+                        <text x="42" y="372" fill="#94a3b8" font-size="10" font-weight="600" font-family="JetBrains Mono">RISKI-PC ATX</text>
+
+                        <!-- TAHAP 2: MOTHERBOARD, CPU & RAM (Klik untuk toggle) -->
+                        <g id="part-mobo" class="hw-part hw-uninstalled cursor-pointer" onclick="toggleComponent('mobo')">
+                            <!-- PCB Motherboard -->
+                            <rect x="20" y="22" width="140" height="190" rx="6" fill="url(#pcbGreen)" stroke="#10b981" stroke-width="1.5" />
+                            <!-- Heatsink VRM -->
+                            <rect x="28" y="30" width="16" height="58" rx="2" fill="#334155" stroke="#64748b" stroke-width="1" />
+                            <rect x="52" y="28" width="56" height="14" rx="2" fill="#334155" stroke="#64748b" stroke-width="1" />
+                            <!-- Soket & Fan CPU -->
+                            <rect x="54" y="52" width="52" height="52" rx="6" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5" />
+                            <circle cx="80" cy="78" r="20" fill="#1e293b" stroke="#0284c7" stroke-width="1.5" />
+                            <text x="80" y="81" text-anchor="middle" fill="#e0f2fe" font-size="8.5" font-weight="700" font-family="JetBrains Mono">CORE i7</text>
+                            <!-- Slot & Keping RAM DDR4 (2 Keping) -->
+                            <rect x="118" y="46" width="8" height="72" rx="1.5" fill="#0284c7" stroke="#7dd3fc" stroke-width="1" />
+                            <rect x="131" y="46" width="8" height="72" rx="1.5" fill="#0284c7" stroke="#7dd3fc" stroke-width="1" />
+                            <!-- Chipset Southbridge -->
+                            <rect x="96" y="142" width="38" height="32" rx="4" fill="#1e293b" stroke="#475569" stroke-width="1" />
+                            <text x="115" y="161" text-anchor="middle" fill="#94a3b8" font-size="7.5" font-family="JetBrains Mono">Z790</text>
+                            <!-- Label -->
+                            <text x="30" y="198" fill="#6ee7b7" font-size="8.5" font-weight="700" font-family="JetBrains Mono">[1] MOBO + CPU + RAM</text>
+                        </g>
+
+                        <!-- TAHAP 3: NIC / LAN CARD GIGABIT & POWER SUPPLY (PSU) -->
+                        <g id="part-nic-psu" class="hw-part hw-uninstalled cursor-pointer" onclick="toggleComponent('nicPsu')">
+                            <!-- Slot PCIe & Kartu NIC Gigabit -->
+                            <rect x="24" y="142" width="64" height="30" rx="4" fill="#1d4ed8" stroke="#60a5fa" stroke-width="1.5" />
+                            <rect x="28" y="148" width="18" height="18" rx="2" fill="#0f172a" stroke="#93c5fd" stroke-width="1" />
+                            <text x="64" y="160" text-anchor="middle" fill="#ffffff" font-size="8" font-weight="700" font-family="JetBrains Mono">NIC 1GbE</text>
+                            <!-- Port RJ45 pada PC Client (Titik x=180+18=198, y=157+48=205) -->
+                            <rect x="152" y="147" width="18" height="20" rx="2" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5" />
+                            <circle id="led-pc-nic" cx="161" cy="152" r="2" fill="#334155" />
+
+                            <!-- Unit Power Supply (PSU) di Bawah Casing -->
+                            <rect x="20" y="256" width="140" height="80" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5" />
+                            <circle cx="62" cy="296" r="26" fill="#0f172a" stroke="#475569" stroke-width="1.5" />
+                            <circle cx="62" cy="296" r="10" fill="#334155" />
+                            <text x="122" y="286" text-anchor="middle" fill="#fbbf24" font-size="9.5" font-weight="700" font-family="JetBrains Mono">PSU 650W</text>
+                            <text x="122" y="301" text-anchor="middle" fill="#cbd5e1" font-size="8" font-family="JetBrains Mono">80+ GOLD</text>
+                            <text x="122" y="324" text-anchor="middle" fill="#fde68a" font-size="8" font-weight="700" font-family="JetBrains Mono">[2] NIC + PSU</text>
+                        </g>
+                    </g>
+
+                    <!-- ========================================================= -->
+                    <!-- BAGIAN KANAN SVG: RAK SERVER 19" (SWITCH, ROUTER, SERVER) -->
+                    <!-- ========================================================= -->
+                    <g id="server-rack-group" transform="translate(256, 48)">
+                        <!-- Frame Tiang Rak Server (Tahap 1 - Base) -->
+                        <rect x="0" y="0" width="186" height="390" rx="10" fill="#090d16" stroke="#334155" stroke-width="2.5" />
+                        <!-- Rel Lubang Baut Kiri & Kanan -->
+                        <line x1="12" y1="8" x2="12" y2="382" stroke="#1e293b" stroke-width="6" stroke-dasharray="4 6" />
+                        <line x1="174" y1="8" x2="174" y2="382" stroke="#1e293b" stroke-width="6" stroke-dasharray="4 6" />
+
+                        <!-- TAHAP 4A: UNIT SWITCH 24-PORT (HOP 1 - 192.168.1.2) -->
+                        <g id="part-switch" class="hw-part hw-uninstalled cursor-pointer" transform="translate(16, 26)" onclick="toggleComponent('rackDevices')">
+                            <circle id="pulse-hop-1" cx="77" cy="34" r="36" fill="none" stroke="#22d3ee" stroke-width="2" class="hidden" />
+                            <rect x="0" y="0" width="154" height="68" rx="6" fill="#0f172a" stroke="#14b8a6" stroke-width="1.8" />
+                            <rect x="6" y="6" width="52" height="15" rx="3" fill="#134e4a" />
+                            <text x="32" y="16.5" text-anchor="middle" fill="#5eead4" font-size="8" font-weight="700" font-family="JetBrains Mono">HOP 1: SWITCH</text>
+                            <text x="146" y="16.5" text-anchor="end" fill="#2dd4bf" font-size="8.5" font-weight="600" font-family="JetBrains Mono">192.168.1.2</text>
+
+                            <!-- Deretan Port RJ45 Switch -->
+                            <g transform="translate(8, 28)">
+                                <rect x="0" y="0" width="14" height="12" rx="1.5" fill="#1e293b" stroke="#2dd4bf" stroke-width="1" />
+                                <rect x="18" y="0" width="14" height="12" rx="1.5" fill="#1e293b" stroke="#475569" stroke-width="1" />
+                                <rect x="36" y="0" width="14" height="12" rx="1.5" fill="#1e293b" stroke="#475569" stroke-width="1" />
+                                <rect x="54" y="0" width="14" height="12" rx="1.5" fill="#1e293b" stroke="#475569" stroke-width="1" />
+                                <rect x="72" y="0" width="14" height="12" rx="1.5" fill="#1e293b" stroke="#475569" stroke-width="1" />
+                                <rect x="90" y="0" width="14" height="12" rx="1.5" fill="#1e293b" stroke="#475569" stroke-width="1" />
+                                <!-- LED Port -->
+                                <circle id="led-sw-1" cx="7" cy="18" r="2.2" fill="#334155" />
+                                <circle id="led-sw-2" cx="25" cy="18" r="2.2" fill="#334155" />
+                                <circle cx="43" cy="18" r="2" fill="#334155" />
+                                <circle cx="61" cy="18" r="2" fill="#334155" />
+                            </g>
+                            <text x="77" y="61" text-anchor="middle" fill="#99f6e4" font-size="8" font-family="JetBrains Mono">[3] Cisco Catalyst 24P</text>
+                        </g>
+
+                        <!-- TAHAP 4B: UNIT ROUTER GATEWAY (HOP 2 - 192.168.1.1) -->
+                        <g id="part-router" class="hw-part hw-uninstalled cursor-pointer" transform="translate(16, 146)" onclick="toggleComponent('rackDevices')">
+                            <circle id="pulse-hop-2" cx="77" cy="34" r="36" fill="none" stroke="#818cf8" stroke-width="2" class="hidden" />
+                            <rect x="0" y="0" width="154" height="68" rx="6" fill="#0f172a" stroke="#6366f1" stroke-width="1.8" />
+                            <rect x="6" y="6" width="52" height="15" rx="3" fill="#312e81" />
+                            <text x="32" y="16.5" text-anchor="middle" fill="#c7d2fe" font-size="8" font-weight="700" font-family="JetBrains Mono">HOP 2: ROUTER</text>
+                            <text x="146" y="16.5" text-anchor="end" fill="#a5b4fc" font-size="8.5" font-weight="600" font-family="JetBrains Mono">192.168.1.1</text>
+
+                            <!-- Interface WAN & LAN Router -->
+                            <g transform="translate(10, 28)">
+                                <rect x="0" y="0" width="22" height="14" rx="2" fill="#1e1b4b" stroke="#818cf8" stroke-width="1" />
+                                <text x="11" y="10" text-anchor="middle" fill="#c7d2fe" font-size="6.5" font-family="JetBrains Mono">ETH0</text>
+                                <rect x="28" y="0" width="22" height="14" rx="2" fill="#1e1b4b" stroke="#818cf8" stroke-width="1" />
+                                <text x="39" y="10" text-anchor="middle" fill="#c7d2fe" font-size="6.5" font-family="JetBrains Mono">WAN1</text>
+                                <!-- LED Status Router -->
+                                <circle id="led-rt-1" cx="70" cy="7" r="2.5" fill="#334155" />
+                                <circle id="led-rt-2" cx="82" cy="7" r="2.5" fill="#334155" />
+                                <text x="92" y="10" fill="#94a3b8" font-size="7" font-family="JetBrains Mono">SYS / ACT</text>
+                            </g>
+                            <text x="77" y="61" text-anchor="middle" fill="#c7d2fe" font-size="8" font-family="JetBrains Mono">[3] MikroTik / ISR Gateway</text>
+                        </g>
+
+                        <!-- TAHAP 4C: RACKMOUNT SERVER 2U (HOP 3 - 8.8.8.8) -->
+                        <g id="part-server" class="hw-part hw-uninstalled cursor-pointer" transform="translate(16, 266)" onclick="toggleComponent('rackDevices')">
+                            <circle id="pulse-hop-3" cx="77" cy="44" r="42" fill="none" stroke="#34d399" stroke-width="2" class="hidden" />
+                            <rect x="0" y="0" width="154" height="88" rx="6" fill="#0f172a" stroke="#10b981" stroke-width="1.8" />
+                            <rect x="6" y="6" width="52" height="15" rx="3" fill="#064e3b" />
+                            <text x="32" y="16.5" text-anchor="middle" fill="#6ee7b7" font-size="8" font-weight="700" font-family="JetBrains Mono">HOP 3: SERVER</text>
+                            <text x="146" y="16.5" text-anchor="end" fill="#34d399" font-size="8.5" font-weight="700" font-family="JetBrains Mono">8.8.8.8</text>
+
+                            <!-- Hot-Swap Drive Bays 2U -->
+                            <g transform="translate(10, 27)">
+                                <rect x="0" y="0" width="30" height="36" rx="2" fill="#1e293b" stroke="#334155" stroke-width="1" />
+                                <circle id="led-srv-1" cx="7" cy="7" r="2" fill="#334155" />
+                                <rect x="35" y="0" width="30" height="36" rx="2" fill="#1e293b" stroke="#334155" stroke-width="1" />
+                                <circle id="led-srv-2" cx="42" cy="7" r="2" fill="#334155" />
+                                <rect x="70" y="0" width="30" height="36" rx="2" fill="#1e293b" stroke="#334155" stroke-width="1" />
+                                <circle id="led-srv-3" cx="77" cy="7" r="2" fill="#334155" />
+                                <rect x="105" y="0" width="30" height="36" rx="2" fill="#1e293b" stroke="#334155" stroke-width="1" />
+                                <circle id="led-srv-4" cx="112" cy="7" r="2" fill="#334155" />
+                            </g>
+                            <text x="77" y="78" text-anchor="middle" fill="#6ee7b7" font-size="8" font-family="JetBrains Mono">[3] Dell PowerEdge DNS/Web</text>
+                        </g>
+                    </g>
+
+                    <!-- ========================================================= -->
+                    <!-- TAHAP 5: KABEL UTP RJ45 PATCH CORD (PC -> SW -> RT -> SRV) -->
+                    <!-- ========================================================= -->
+                    <g id="utp-cables-group" class="cursor-pointer" onclick="toggleComponent('cables')">
+                        <!-- Kabel 1: NIC PC (179, 205) -> Port 1 Switch (272, 108) -->
+                        <path id="utp-path-1" d="M 179 205 C 225 205, 225 108, 272 108"
+                              fill="none" stroke="#0284c7" stroke-width="4" stroke-linecap="round" class="utp-cable" />
+                        <path id="utp-flow-1" d="M 179 205 C 225 205, 225 108, 272 108"
+                              fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" class="hidden cable-flow-overlay" />
+
+                        <!-- Kabel 2: Switch (272, 124) -> Router (272, 226) -->
+                        <path id="utp-path-2" d="M 272 124 C 232 145, 232 205, 272 226"
+                              fill="none" stroke="#4f46e5" stroke-width="4" stroke-linecap="round" class="utp-cable" />
+                        <path id="utp-flow-2" d="M 272 124 C 232 145, 232 205, 272 226"
+                              fill="none" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round" class="hidden cable-flow-overlay" />
+
+                        <!-- Kabel 3: Router (272, 244) -> Server (272, 348) -->
+                        <path id="utp-path-3" d="M 272 244 C 232 268, 232 325, 272 348"
+                              fill="none" stroke="#059669" stroke-width="4" stroke-linecap="round" class="utp-cable" />
+                        <path id="utp-flow-3" d="M 272 244 C 232 268, 232 325, 272 348"
+                              fill="none" stroke="#6ee7b7" stroke-width="2" stroke-linecap="round" class="hidden cable-flow-overlay" />
+
+                        <!-- Konektor RJ45 Boots -->
+                        <rect id="rj45-boot-1" x="175" y="200" width="9" height="10" rx="2" fill="#38bdf8" class="opacity-0 transition-opacity" />
+                        <rect id="rj45-boot-2" x="267" y="103" width="9" height="10" rx="2" fill="#38bdf8" class="opacity-0 transition-opacity" />
+                        <rect id="rj45-boot-3" x="267" y="221" width="9" height="10" rx="2" fill="#818cf8" class="opacity-0 transition-opacity" />
+                        <rect id="rj45-boot-4" x="267" y="343" width="9" height="10" rx="2" fill="#34d399" class="opacity-0 transition-opacity" />
+                    </g>
+
+                    <!-- ========================================================= -->
+                    <!-- AKTOR ANIMASI PAKET ICMP BERGERAK MELINTASI KABEL         -->
+                    <!-- ========================================================= -->
+                    <g id="icmp-packet-actor" class="hidden" transform="translate(179, 205)">
+                        <circle id="icmp-packet-dot" r="8" fill="#22d3ee" class="packet-glow-cyan" />
+                        <circle r="3.5" fill="#ffffff" />
+                        <g transform="translate(-44, -28)">
+                            <rect id="icmp-packet-tag-bg" x="0" y="0" width="88" height="20" rx="5" fill="#0f172a" stroke="#22d3ee" stroke-width="1.5" />
+                            <text id="icmp-packet-tag-text" x="44" y="13" text-anchor="middle" fill="#e0f2fe" font-size="8.5" font-weight="700" font-family="JetBrains Mono">
+                                ICMP TTL=64
+                            </text>
+                        </g>
+                    </g>
+
+                    <!-- Efek Gagal / Drop di Ujung NIC jika Kabel Lepas -->
+                    <g id="packet-fail-fx" class="hidden" transform="translate(195, 205)">
+                        <circle r="16" fill="rgba(244, 63, 94, 0.25)" stroke="#f43f5e" stroke-width="2" />
+                        <path d="M-6 -6 L6 6 M6 -6 L-6 6" stroke="#fda4af" stroke-width="2.5" stroke-linecap="round" />
+                    </g>
+
+                    <!-- Footer Hint di dalam SVG -->
+                    <text x="230" y="476" text-anchor="middle" fill="#64748b" font-size="10" font-family="Inter">
+                        Klik komponen perangkat di atas atau gunakan tombol rakit di bawah untuk instalasi
+                    </text>
+                </svg>
+            </div>
+
+            <!-- Kontrol Perakitan Perangkat Keras -->
+            <div class="p-3 bg-slate-900 border-t border-slate-800 space-y-2">
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="btn-next-step" onclick="installNextStep()"
+                        class="py-2 px-3 rounded-xl text-xs font-bold bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-md shadow-cyan-500/15 transition flex items-center justify-center gap-1.5 cursor-pointer">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Pasang Tahap Berikutnya
+                    </button>
+
+                    <button id="btn-auto-assemble" onclick="autoAssembleAll(false)"
+                        class="py-2 px-3 rounded-xl text-xs font-bold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 transition flex items-center justify-center gap-1.5 cursor-pointer">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Simulasi Rakit Otomatis
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- =================================================================== -->
+        <!-- PANEL KANAN: CHECKLIST HARDWARE, LOG ICMP & PANDUAN EDUKATIF        -->
+        <!-- =================================================================== -->
+        <section class="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col overflow-hidden shadow-2xl min-h-[500px] lg:h-[calc(100vh-96px)]">
+            <!-- Header Panel Kanan -->
+            <div class="px-4 py-2.5 bg-slate-850 border-b border-slate-800 flex items-center justify-between">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Status Perangkat &amp; Log ICMP
+                </h2>
+                <button onclick="clearIcmpLogs()" class="text-xs text-slate-400 hover:text-white px-2 py-0.5 rounded hover:bg-slate-800 transition cursor-pointer">
+                    Hapus Log
+                </button>
+            </div>
+
+            <!-- Bagian 1: Checklist Status Pemasangan Perangkat Keras -->
+            <div class="p-3 bg-slate-950/75 border-b border-slate-800">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Checklist Instalasi Hardware</span>
+                    <span id="hw-overall-badge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-500/30">
+                        Belum Siap Jaringan
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-1.5 text-xs">
+                    <!-- Item 1: Casing & Rak -->
+                    <div id="chk-chassis" class="px-2.5 py-1.5 rounded-lg bg-emerald-950/35 border border-emerald-500/35 flex items-center justify-between">
+                        <span class="text-slate-200 font-medium truncate">1. Casing &amp; Rak 19"</span>
+                        <span class="text-[10px] font-mono font-bold text-emerald-400">OK</span>
+                    </div>
+
+                    <!-- Item 2: Mobo, CPU, RAM -->
+                    <div id="chk-mobo" onclick="toggleComponent('mobo')" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between cursor-pointer hover:border-slate-700 transition">
+                        <span class="text-slate-400 font-medium truncate">2. Mobo, CPU &amp; RAM</span>
+                        <span id="chk-mobo-status" class="text-[10px] font-mono font-bold text-rose-400">LEPAS</span>
+                    </div>
+
+                    <!-- Item 3: NIC & PSU -->
+                    <div id="chk-nicPsu" onclick="toggleComponent('nicPsu')" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between cursor-pointer hover:border-slate-700 transition">
+                        <span class="text-slate-400 font-medium truncate">3. NIC 1GbE &amp; PSU</span>
+                        <span id="chk-nicPsu-status" class="text-[10px] font-mono font-bold text-rose-400">LEPAS</span>
+                    </div>
+
+                    <!-- Item 4: Switch, Router, Server -->
+                    <div id="chk-rackDevices" onclick="toggleComponent('rackDevices')" class="px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between cursor-pointer hover:border-slate-700 transition">
+                        <span class="text-slate-400 font-medium truncate">4. Switch, Router, Srv</span>
+                        <span id="chk-rackDevices-status" class="text-[10px] font-mono font-bold text-rose-400">LEPAS</span>
+                    </div>
+
+                    <!-- Item 5: Kabel UTP RJ45 (Full Span) -->
+                    <div id="chk-cables" onclick="toggleComponent('cables')" class="col-span-2 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between cursor-pointer hover:border-slate-700 transition">
+                        <span class="text-slate-400 font-medium truncate">5. Kabel Patch Cord UTP Cat6 (PC → Switch → Router → Server)</span>
+                        <span id="chk-cables-status" class="text-[10px] font-mono font-bold text-rose-400">TERPUTUS</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bagian 2: Statistik Telemetri ICMP -->
+            <div class="grid grid-cols-3 divide-x divide-slate-800 border-b border-slate-800 bg-slate-900/60 text-center py-2">
+                <div>
+                    <div class="text-[10px] text-slate-400 uppercase font-semibold">Paket (Sent/Recv)</div>
+                    <div id="stat-packets" class="text-xs sm:text-sm font-mono font-bold text-white mt-0.5">0 / 0</div>
+                </div>
+                <div>
+                    <div class="text-[10px] text-slate-400 uppercase font-semibold">Rata-rata RTT</div>
+                    <div id="stat-rtt" class="text-xs sm:text-sm font-mono font-bold text-emerald-400 mt-0.5">- ms</div>
+                </div>
+                <div>
+                    <div class="text-[10px] text-slate-400 uppercase font-semibold">Packet Loss</div>
+                    <div id="stat-loss" class="text-xs sm:text-sm font-mono font-bold text-cyan-400 mt-0.5">0%</div>
+                </div>
+            </div>
+
+            <!-- Bagian 3: Feed Log Telemetri ICMP Real-Time -->
+            <div id="icmp-log-list" class="flex-1 overflow-y-auto p-3 space-y-2">
+                <div id="icmp-empty-placeholder" class="h-full flex flex-col items-center justify-center text-center p-4 text-slate-500">
+                    <svg class="w-9 h-9 mb-2 text-slate-700" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p class="text-xs font-medium text-slate-400">Belum ada log respon ICMP</p>
+                    <p class="text-[11px] mt-1">Rakit perangkat terlebih dahulu lalu ketik <code class="font-mono text-cyan-400">ping 8.8.8.8</code> atau <code class="font-mono text-cyan-400">tracert 8.8.8.8</code>.</p>
+                </div>
+            </div>
+
+            <!-- Bagian 4: Panduan Edukatif TKJ Dinamis -->
+            <div class="p-3 bg-slate-950 border-t border-slate-800">
+                <div id="edu-guide-box" class="p-2.5 rounded-xl bg-amber-950/25 border border-amber-500/30 text-[11.5px] text-amber-100 leading-relaxed">
+                    <span class="font-bold text-amber-300">Langkah Praktikum 1:</span> Perangkat keras PC dan Rak Server belum selesai dirakit. Klik <strong>"Simulasi Rakit Otomatis"</strong> di panel tengah, atau coba ketik <code class="font-mono bg-slate-900 px-1 rounded text-rose-300">ping 8.8.8.8</code> sekarang untuk mengamati pesan error <em>Hardware Disconnected</em>!
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ======================================================================= -->
+    <!-- JAVASCRIPT ENGINE: PERAKITAN HARDWARE + SIMULASI CLI PING & TRACERT     -->
+    <!-- ======================================================================= -->
+    <script>
+        /**
+         * State Perakitan Perangkat Keras Lab Riski TKJ
+         */
+        const hwState = {
+            chassis: true,      // Tahap 1: Casing PC & Rak Server
+            mobo: false,        // Tahap 2: Motherboard, CPU & RAM
+            nicPsu: false,      // Tahap 3: NIC Gigabit & Power Supply
+            rackDevices: false, // Tahap 4: Switch (Hop 1), Router (Hop 2), Server (Hop 3)
+            cables: false       // Tahap 5: Kabel Patch Cord UTP RJ45
+        };
+
+        // Urutan langkah perakitan otomatis
+        const ASSEMBLY_SEQUENCE = ['mobo', 'nicPsu', 'rackDevices', 'cables'];
+
+        // State Simulasi CLI
+        let isSimulating = false;
+        let isAutoAssembling = false;
+        let abortController = null;
+        let commandHistory = [];
+        let historyIndex = -1;
+
+        // Statistik ICMP
+        let icmpStats = {
+            sent: 0,
+            received: 0,
+            rtts: []
+        };
+
+        // Referensi Elemen DOM Utama
+        const terminalOutput = document.getElementById('terminal-output');
+        const cliForm = document.getElementById('cli-form');
+        const cliInput = document.getElementById('cli-input');
+        const cliSubmitBtn = document.getElementById('cli-submit-btn');
+        const cliStatusBadge = document.getElementById('cli-status-badge');
+        const icmpLogList = document.getElementById('icmp-log-list');
+        const eduGuideBox = document.getElementById('edu-guide-box');
+
+        // Koordinat Titik Perjalanan Paket di Atas SVG Perakitan
+        const WAYPOINTS = {
+            pcNic: { x: 179, y: 205 },
+            switchPort: { x: 272, y: 108 },
+            routerPort: { x: 272, y: 226 },
+            serverPort: { x: 272, y: 348 }
+        };
+
+        // Inisialisasi Halaman
+        window.addEventListener('DOMContentLoaded', () => {
+            printWelcomeMessage();
+            syncHardwareVisuals();
+            cliInput.focus();
+        });
+
+        function focusCliInput() {
+            if (window.getSelection().toString().length === 0) {
+                cliInput.focus();
+            }
+        }
+
+        function printWelcomeMessage() {
+            appendTerminal('Microsoft Windows [Version 10.0.22631.4460] — Lab Riski TKJ', 'text-slate-400');
+            appendTerminal('(c) Laboratorium Teknik Komputer & Jaringan. Hak Cipta Dilindungi.', 'text-slate-500');
+            appendTerminal('=================================================================', 'text-slate-800');
+            appendTerminal('Modul Praktikum : Perakitan Hardware PC/Server & Pengujian ICMP', 'text-cyan-400');
+            appendTerminal('Status Awal     : Perangkat keras & kabel UTP belum terpasang lengkap.', 'text-amber-300');
+            appendTerminal('Ketik "help" untuk daftar perintah atau rakit perangkat di panel tengah.', 'text-slate-300');
+            appendTerminal('', 'h-2');
+        }
+
+        function appendTerminal(text, className = 'text-slate-200') {
+            const div = document.createElement('div');
+            div.className = `whitespace-pre-wrap break-words ${className}`;
+            div.textContent = text;
+            terminalOutput.appendChild(div);
+            terminalOutput.scrollTop = terminalOutput.scrollHeight;
+        }
+
+        function clearTerminal() {
+            terminalOutput.innerHTML = '';
+            printWelcomeMessage();
+        }
+
+        function clearIcmpLogs() {
+            icmpLogList.innerHTML = `
+                <div id="icmp-empty-placeholder" class="h-full flex flex-col items-center justify-center text-center p-4 text-slate-500">
+                    <svg class="w-9 h-9 mb-2 text-slate-700" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p class="text-xs font-medium text-slate-400">Log ICMP telah dibersihkan</p>
+                    <p class="text-[11px] mt-1">Jalankan perintah ping atau tracert untuk merekam paket baru.</p>
+                </div>
+            `;
+            icmpStats = { sent: 0, received: 0, rtts: [] };
+            updateStatsUi();
+        }
+
+        /**
+         * =====================================================================
+         * LOGIKA PERAKITAN & SINKRONISASI VISUAL HARDWARE (PANEL TENGAH & KANAN)
+         * =====================================================================
+         */
+        function toggleComponent(key) {
+            if (isSimulating || isAutoAssembling) return;
+
+            // Validasi urutan logis sederhana saat memasang
+            if (!hwState[key]) {
+                if (key === 'nicPsu' && !hwState.mobo) {
+                    hwState.mobo = true; // Otomatis pasang mobo dulu jika user klik NIC
+                }
+                if (key === 'cables' && (!hwState.nicPsu || !hwState.rackDevices)) {
+                    // Izinkan pasang kabel hanya jika NIC & Perangkat Rak sudah ada, atau pasang otomatis
+                    hwState.mobo = true;
+                    hwState.nicPsu = true;
+                    hwState.rackDevices = true;
+                }
+            } else {
+                // Jika komponen utama dilepas, kabel UTP ikut terlepas secara realistis
+                if (key === 'mobo') {
+                    hwState.nicPsu = false;
+                    hwState.cables = false;
+                } else if (key === 'nicPsu' || key === 'rackDevices') {
+                    hwState.cables = false;
+                }
+            }
+
+            hwState[key] = !hwState[key];
+            syncHardwareVisuals();
+        }
+
+        function installNextStep() {
+            if (isSimulating || isAutoAssembling) return;
+            for (const stepKey of ASSEMBLY_SEQUENCE) {
+                if (!hwState[stepKey]) {
+                    hwState[stepKey] = true;
+                    syncHardwareVisuals();
+                    return;
+                }
+            }
+        }
+
+        async function autoAssembleAll(instant = false) {
+            if (isSimulating) {
+                if (abortController) abortController.abort();
+            }
+            if (isAutoAssembling) return;
+
+            if (instant) {
+                hwState.mobo = true;
+                hwState.nicPsu = true;
+                hwState.rackDevices = true;
+                hwState.cables = true;
+                syncHardwareVisuals();
+                return;
+            }
+
+            isAutoAssembling = true;
+            const btnAuto = document.getElementById('btn-auto-assemble');
+            btnAuto.classList.add('opacity-60', 'cursor-not-allowed');
+
+            for (const stepKey of ASSEMBLY_SEQUENCE) {
+                if (!hwState[stepKey]) {
+                    hwState[stepKey] = true;
+                    syncHardwareVisuals();
+                    await new Promise(r => setTimeout(r, 550));
+                }
+            }
+
+            isAutoAssembling = false;
+            btnAuto.classList.remove('opacity-60', 'cursor-not-allowed');
+        }
+
+        function resetLaboratory() {
+            if (isSimulating && abortController) {
+                abortController.abort();
+            }
+            isAutoAssembling = false;
+            hwState.mobo = false;
+            hwState.nicPsu = false;
+            hwState.rackDevices = false;
+            hwState.cables = false;
+
+            hidePacketActor();
+            hideFailFx();
+            syncHardwareVisuals();
+            clearTerminal();
+            clearIcmpLogs();
+            setSimulatingState(false);
+        }
+
+        function isHardwareReadyForNetwork() {
+            return hwState.mobo && hwState.nicPsu && hwState.rackDevices && hwState.cables;
+        }
+
+        function syncHardwareVisuals() {
+            // 1. Update Elemen SVG Hardware
+            setSvgPartInstalled('part-mobo', hwState.mobo);
+            setSvgPartInstalled('part-nic-psu', hwState.nicPsu);
+            setSvgPartInstalled('part-switch', hwState.rackDevices);
+            setSvgPartInstalled('part-router', hwState.rackDevices);
+            setSvgPartInstalled('part-server', hwState.rackDevices);
+
+            // LED Power PC Client
+            const pcPowerLed = document.getElementById('pc-power-led');
+            pcPowerLed.setAttribute('fill', (hwState.mobo && hwState.nicPsu) ? '#38bdf8' : '#334155');
+
+            // Kabel UTP & Konektor RJ45
+            const cablePaths = ['utp-path-1', 'utp-path-2', 'utp-path-3'];
+            const flowPaths = ['utp-flow-1', 'utp-flow-2', 'utp-flow-3'];
+            const boots = ['rj45-boot-1', 'rj45-boot-2', 'rj45-boot-3', 'rj45-boot-4'];
+
+            cablePaths.forEach(id => {
+                const el = document.getElementById(id);
+                if (hwState.cables) el.classList.add('connected');
+                else el.classList.remove('connected');
+            });
+
+            const fullReady = isHardwareReadyForNetwork();
+
+            flowPaths.forEach(id => {
+                const el = document.getElementById(id);
+                if (fullReady) el.classList.remove('hidden');
+                else el.classList.add('hidden');
+            });
+
+            boots.forEach(id => {
+                const el = document.getElementById(id);
+                el.style.opacity = hwState.cables ? '1' : '0';
+            });
+
+            // Lampu LED Link/Activity pada Perangkat Jaringan
+            const greenLeds = ['led-pc-nic', 'led-sw-1', 'led-rt-1', 'led-srv-1', 'led-srv-3'];
+            const amberLeds = ['led-sw-2', 'led-rt-2', 'led-srv-2', 'led-srv-4'];
+
+            greenLeds.forEach(id => {
+                const el = document.getElementById(id);
+                if (fullReady) el.setAttribute('class', 'led-link-on');
+                else {
+                    el.removeAttribute('class');
+                    el.setAttribute('fill', '#334155');
+                }
+            });
+
+            amberLeds.forEach(id => {
+                const el = document.getElementById(id);
+                if (fullReady) el.setAttribute('class', 'led-act-on');
+                else {
+                    el.removeAttribute('class');
+                    el.setAttribute('fill', '#334155');
+                }
+            });
+
+            // 2. Hitung Progress Perakitan (1 sampai 5)
+            let completedStages = 1;
+            if (hwState.mobo) completedStages++;
+            if (hwState.nicPsu) completedStages++;
+            if (hwState.rackDevices) completedStages++;
+            if (hwState.cables) completedStages++;
+
+            const pct = Math.round((completedStages / 5) * 100);
+            document.getElementById('assembly-progress-badge').textContent = `Rakitan: ${completedStages}/5 Tahap`;
+            document.getElementById('assembly-progress-bar').style.width = `${pct}%`;
+
+            // 3. Update Checklist di Panel Kanan
+            updateChecklistCard('chk-mobo', 'chk-mobo-status', hwState.mobo, 'TERPASANG', 'LEPAS');
+            updateChecklistCard('chk-nicPsu', 'chk-nicPsu-status', hwState.nicPsu, 'TERPASANG', 'LEPAS');
+            updateChecklistCard('chk-rackDevices', 'chk-rackDevices-status', hwState.rackDevices, 'ONLINE', 'LEPAS');
+            updateChecklistCard('chk-cables', 'chk-cables-status', hwState.cables, 'LINK UP', 'TERPUTUS');
+
+            const hwOverallBadge = document.getElementById('hw-overall-badge');
+            const btnNextStep = document.getElementById('btn-next-step');
+
+            if (fullReady) {
+                hwOverallBadge.textContent = 'Jaringan Siap (Link Up)';
+                hwOverallBadge.className = 'text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+                btnNextStep.disabled = true;
+                btnNextStep.classList.add('opacity-45', 'cursor-not-allowed');
+                eduGuideBox.className = 'p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/35 text-[11.5px] text-emerald-100 leading-relaxed';
+                eduGuideBox.innerHTML = `<span class="font-bold text-emerald-300">Perakitan Selesai (Link Up)!</span> Seluruh perangkat PC Client, Switch, Router, Server, dan kabel UTP Cat6 sudah terhubung. Sekarang ketik <code class="font-mono bg-slate-900 px-1 rounded text-cyan-300">ping 8.8.8.8</code> atau <code class="font-mono bg-slate-900 px-1 rounded text-amber-300">tracert 8.8.8.8</code> di terminal kiri!`;
+            } else {
+                hwOverallBadge.textContent = 'Belum Siap Jaringan';
+                hwOverallBadge.className = 'text-[10px] font-mono px-2 py-0.5 rounded bg-rose-500/15 text-rose-300 border border-rose-500/30';
+                btnNextStep.disabled = false;
+                btnNextStep.classList.remove('opacity-45', 'cursor-not-allowed');
+                eduGuideBox.className = 'p-2.5 rounded-xl bg-amber-950/25 border border-amber-500/30 text-[11.5px] text-amber-100 leading-relaxed';
+                eduGuideBox.innerHTML = `<span class="font-bold text-amber-300">Tahap Perakitan (${completedStages}/5):</span> Selesaikan pemasangan komponen &amp; kabel UTP di panel tengah, atau uji coba ketik <code class="font-mono bg-slate-900 px-1 rounded text-rose-300">ping 8.8.8.8</code> untuk melihat dampak fisik jika kabel/NIC belum terpasang.`;
+            }
+        }
+
+        function setSvgPartInstalled(elementId, installed) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            if (installed) {
+                el.classList.remove('hw-uninstalled');
+                el.classList.add('hw-installed');
+            } else {
+                el.classList.remove('hw-installed');
+                el.classList.add('hw-uninstalled');
+            }
+        }
+
+        function updateChecklistCard(cardId, statusId, isInstalled, okLabel, failLabel) {
+            const card = document.getElementById(cardId);
+            const statusEl = document.getElementById(statusId);
+            const labelEl = card.querySelector('span:first-child');
+
+            if (isInstalled) {
+                card.className = card.className.replace('bg-slate-900 border-slate-800', 'bg-emerald-950/35 border-emerald-500/35');
+                labelEl.classList.remove('text-slate-400');
+                labelEl.classList.add('text-slate-200');
+                statusEl.textContent = okLabel;
+                statusEl.className = 'text-[10px] font-mono font-bold text-emerald-400';
+            } else {
+                card.className = card.className.replace('bg-emerald-950/35 border-emerald-500/35', 'bg-slate-900 border-slate-800');
+                labelEl.classList.remove('text-slate-200');
+                labelEl.classList.add('text-slate-400');
+                statusEl.textContent = failLabel;
+                statusEl.className = 'text-[10px] font-mono font-bold text-rose-400';
+            }
+        }
+
+        /**
+         * =====================================================================
+         * TERMINAL CLI PARSER & EKSEKUTOR PERINTAH
+         * =====================================================================
+         */
+        function runScenario(cmd) {
+            if (isSimulating && abortController) {
+                abortController.abort();
+            }
+            setTimeout(() => {
+                triggerQuickCmd(cmd);
+            }, 60);
+        }
+
+        function triggerQuickCmd(cmd) {
+            if (isSimulating || isAutoAssembling) return;
+            cliInput.value = cmd;
+            processCliCommand(cmd);
+        }
+
+        cliForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const raw = cliInput.value.trim();
+            if (!raw || isSimulating || isAutoAssembling) return;
+            processCliCommand(raw);
+        });
+
+        cliInput.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (commandHistory.length > 0 && historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    cliInput.value = commandHistory[commandHistory.length - 1 - historyIndex];
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    cliInput.value = commandHistory[commandHistory.length - 1 - historyIndex];
+                } else {
+                    historyIndex = -1;
+                    cliInput.value = '';
+                }
+            }
+        });
+
+        async function processCliCommand(rawCmd) {
+            commandHistory.push(rawCmd);
+            historyIndex = -1;
+            cliInput.value = '';
+
+            appendTerminal(`C:\\Users\\Riski-TKJ> ${rawCmd}`, 'text-emerald-400 font-semibold');
+
+            const parts = rawCmd.toLowerCase().split(/\s+/);
+            const cmd = parts[0];
+            const target = parts[1];
+
+            switch (cmd) {
+                case 'help':
+                case '?':
+                    appendTerminal('Daftar Perintah CLI Lab Riski TKJ:', 'text-cyan-300 font-semibold');
+                    appendTerminal('  ping [ip/domain]     Menguji konektivitas ke host tujuan (4 paket ICMP)', 'text-slate-200');
+                    appendTerminal('  tracert [ip/domain]  Melacak jalur hop-by-hop menggunakan nilai TTL', 'text-slate-200');
+                    appendTerminal('  ipconfig             Menampilkan konfigurasi IPv4 Ethernet PC Riski', 'text-slate-200');
+                    appendTerminal('  cls / clear          Membersihkan layar terminal', 'text-slate-200');
+                    appendTerminal('\nTarget IP Jaringan Lab:', 'text-amber-300 font-semibold');
+                    appendTerminal('  192.168.1.2          Switch L2/L3 (Hop 1)', 'text-slate-300');
+                    appendTerminal('  192.168.1.1          Router Gateway (Hop 2)', 'text-slate-300');
+                    appendTerminal('  8.8.8.8 / google.com DNS / Web Server (Hop 3)', 'text-slate-300');
+                    appendTerminal('  10.10.10.1           Host Tidak Terjangkau (Simulasi RTO)', 'text-rose-300');
+                    break;
+
+                case 'ipconfig':
+                    appendTerminal('\nWindows IP Configuration — Lab Riski TKJ\n', 'text-cyan-300 font-semibold');
+                    if (!hwState.nicPsu) {
+                        appendTerminal('Media State . . . . . . . . . . . : NIC / LAN Card tidak terdeteksi!', 'text-rose-400');
+                    } else if (!hwState.cables) {
+                        appendTerminal('Ethernet adapter Ethernet0:', 'text-slate-300');
+                        appendTerminal('   Media State . . . . . . . . . . . : Media disconnected (Kabel UTP terputus)', 'text-rose-400');
+                    } else {
+                        appendTerminal('Ethernet adapter Ethernet0:', 'text-slate-300');
+                        appendTerminal('   Connection-specific DNS Suffix  . : riski-tkj.lab', 'text-slate-400');
+                        appendTerminal('   IPv4 Address. . . . . . . . . . . : 192.168.1.10', 'text-emerald-300');
+                        appendTerminal('   Subnet Mask . . . . . . . . . . . : 255.255.255.0', 'text-slate-200');
+                        appendTerminal('   Default Gateway . . . . . . . . . : 192.168.1.1', 'text-cyan-300');
+                    }
+                    break;
+
+                case 'cls':
+                case 'clear':
+                    clearTerminal();
+                    break;
+
+                case 'ping':
+                    if (!target) {
+                        appendTerminal('Penggunaan: ping
